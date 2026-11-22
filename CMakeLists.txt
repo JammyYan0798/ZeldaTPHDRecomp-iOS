@@ -266,6 +266,7 @@ endif()
 
 if(WWHD_IOS)
   set(WWHD_IOS_BUNDLE_ID "org.tphdrecomp.ios" CACHE STRING "iPad app bundle identifier")
+  set(WWHD_IOS_BUILD_NUMBER "1" CACHE STRING "iPad app build number")
   set(WWHD_IOS_APP_ICON_CATALOG "" CACHE PATH "Build-local iOS AppIcon asset catalog")
   set(WWHD_IOS_SETTINGS_FONT
       ${CMAKE_SOURCE_DIR}/runtime/assets/fonts/WWHDSettingsSansSC-Regular.ttf
@@ -286,6 +287,7 @@ if(WWHD_IOS)
   set_target_properties(wwhd PROPERTIES
     MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_SOURCE_DIR}/ios/Info.plist.in"
+    XCODE_ATTRIBUTE_CURRENT_PROJECT_VERSION "${WWHD_IOS_BUILD_NUMBER}"
     MACOSX_BUNDLE_GUI_IDENTIFIER "${WWHD_IOS_BUNDLE_ID}"
     XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER "${WWHD_IOS_BUNDLE_ID}"
     XCODE_ATTRIBUTE_CODE_SIGN_STYLE "Automatic"

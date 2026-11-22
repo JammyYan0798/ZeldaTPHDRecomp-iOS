@@ -7,7 +7,7 @@
 <key>CFBundleDisplayName</key><string>Twilight Princess HD</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1</string>
-<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleVersion</key><string>${WWHD_IOS_BUILD_NUMBER}</string>
 <key>LSRequiresIPhoneOS</key><true/>
 <key>UIRequiresFullScreen</key><true/>
 <key>LSSupportsGameMode</key><true/>

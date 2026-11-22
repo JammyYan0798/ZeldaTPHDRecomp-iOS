@@ -73,7 +73,43 @@ python3 ios/build.py --game "/path/to/your/USA-Rev2-game" \
   --team YOUR_TEAM_ID --bundle-id com.example.tphd
 ```
 
-The build script derives the app icon locally from `meta/iconTex.tga` in that game folder. The icon source, converted images, generated game C, game dump, signed app, and signing material are not part of this source package. Install the app using your own Xcode signing setup, then copy the same-version game folder into the app's `Documents/game` directory.
+The build script derives the app icon locally from `meta/iconTex.tga` in that game folder. The icon source, converted images, generated game C, game dump, signed app, and signing material are not part of this source package.
+
+### Install and import on Windows or macOS
+
+Xcode builds and signs iOS apps on macOS. Windows can install a signed IPA and import the user's local game folder directly to an iPad; a Windows build can use an explicitly selected Mac over SSH. Windows device access requires Apple's Mobile Device Service (installed with iTunes) and a device that has already been trusted and paired. The device client does not automatically pair or select a device.
+
+Install the pinned device client in a project-local environment:
+
+```sh
+python3 -m venv .local-tools/device-venv
+.local-tools/device-venv/bin/python -m pip install -r ios/device-requirements.txt
+```
+
+On Windows, use `py -m venv .local-tools\device-venv` and invoke each following command with `.local-tools\device-venv\Scripts\python.exe` instead of `python3`.
+
+Check one exact device and app without changing either:
+
+```sh
+.local-tools/device-venv/bin/python ios/build.py --doctor-device --device-id YOUR_DEVICE_ID --bundle-id com.example.yourapp
+```
+
+Install a signed IPA, import a local game folder, or run the full build/install/import/launch path:
+
+```sh
+.local-tools/device-venv/bin/python ios/build.py --install --ipa "/path/to/your-signed-app.ipa" \
+  --device-id YOUR_DEVICE_ID --bundle-id com.example.yourapp
+.local-tools/device-venv/bin/python ios/build.py --import-game --game "/path/to/your/USA-Rev2-v81-game" \
+  --device-id YOUR_DEVICE_ID --bundle-id com.example.yourapp
+.local-tools/device-venv/bin/python ios/build.py --deploy --game "/path/to/your/USA-Rev2-v81-game" \
+  --team YOUR_TEAM_ID --bundle-id com.example.yourapp --device-id YOUR_DEVICE_ID
+```
+
+On Windows, `--deploy --ipa ...` uses a signed IPA already on that computer. To build on your own Mac, add `--remote-mac YOUR_SSH_ALIAS`; game data then travels to that explicit host over OpenSSH and is not sent to CI or a public service. The signed IPA defaults to a unique file under the ignored `build/` directory; `--ipa-output` can select another new path. Existing output files are never replaced.
+
+The same exact bundle is upgraded in place; the workflow never uninstalls it or terminates a running app. If app-running state cannot be read, the operation stops. Before and after installation it compares three named game-base file hashes, whole-game path/type/size/time metadata, small profile/preferences hashes, and only the top-level save count. It does not read save contents. A new game folder is copied to a fixed sibling staging directory, verified against the local manifest, then renamed into `Documents/game`. If that folder already exists, the workflow only checks tree structure/size metadata and hashes `code/Zelda.rpx`, `content/FileSizeList.txt`, and `content/DecompressedSizeList.txt`; it does not hash every existing game file. A mismatch is left untouched.
+
+Device receipts go under ignored `build/device-receipts/` and omit the device identifier. They record the IPA hash when an IPA was installed and state the scope of each preservation check. These checks do not replace on-device gameplay acceptance.
 
 ## Credits and licenses
 
