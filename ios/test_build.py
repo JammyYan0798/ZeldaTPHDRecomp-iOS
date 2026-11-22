@@ -3,7 +3,10 @@ import io
 from pathlib import Path
 import shlex
 import sys
+import tempfile
+from types import SimpleNamespace
 import unittest
+import plistlib
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -71,6 +74,38 @@ class DoctorTests(unittest.TestCase):
         self.assertEqual(stub_argv[stub_argv.index("--cmake") + 1], args.cmake)
         self.assertEqual(stub_argv[stub_argv.index("--build-root") + 1], str(args.build_root.resolve()))
         self.assertEqual(stub_argv[stub_argv.index("--configuration") + 1], "Debug")
+
+
+class PackageBuildTests(unittest.TestCase):
+    def test_signed_app_layout_matches_remote_mac_contract(self):
+        build_root = Path("/private/build")
+        self.assertEqual(build.signed_app_path(build_root, "Release"),
+                         build_root / "ios-game/Release-iphoneos/wwhd.app")
+
+    def test_info_plist_substitutes_a_long_unix_build_number(self):
+        template = (build.ROOT / "ios/Info.plist.in").read_text(encoding="utf-8")
+        rendered = (template.replace("${MACOSX_BUNDLE_EXECUTABLE_NAME}", "wwhd")
+                    .replace("${WWHD_IOS_BUNDLE_ID}", "org.example.tphd")
+                    .replace("${WWHD_IOS_BUILD_NUMBER}", "1763812345"))
+        data = plistlib.loads(rendered.encode("utf-8"))
+        self.assertEqual(data["CFBundleVersion"], "1763812345")
+
+    def test_remote_wrapper_passes_explicit_build_number(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "TPHD-1234567890.ipa"
+            args = SimpleNamespace(ipa_output=output, build_root=Path(tmp), remote_mac="my-mac",
+                                   game=Path(tmp) / "game", team="ABCDEFGHIJ",
+                                   bundle_id="org.example.tphd", cmake="cmake",
+                                   configuration="RelWithDebInfo")
+            git = SimpleNamespace(stdout="a" * 40)
+            with mock.patch.object(build.subprocess, "run", side_effect=(git, SimpleNamespace(returncode=0))) as run, \
+                    mock.patch.object(build.device, "inspect_ipa", return_value={"build_number": "1234567890"}):
+                result, build_number = build._remote_signed_ipa(args, "1234567890")
+        self.assertEqual(result, output.resolve())
+        self.assertEqual(build_number, "1234567890")
+        command = run.call_args_list[1].args[0]
+        self.assertEqual(command[command.index("--build-number") + 1], "1234567890")
+        self.assertIn("--output", command)
 
 
 if __name__ == "__main__":
