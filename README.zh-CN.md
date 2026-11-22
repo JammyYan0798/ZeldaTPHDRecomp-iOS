@@ -73,7 +73,43 @@ python3 ios/build.py --game "/path/to/your/USA-Rev2-game" \
   --team YOUR_TEAM_ID --bundle-id com.example.tphd
 ```
 
-构建脚本会从该游戏目录的 `meta/iconTex.tga` 在本地生成应用图标。图标源文件、转换图片、生成的游戏 C 代码、游戏 dump、签名应用和签名材料都不属于源码包。使用自己的 Xcode 签名配置安装应用后，将同版本游戏目录复制到应用的 `Documents/game` 目录。
+构建脚本会从该游戏目录的 `meta/iconTex.tga` 在本地生成应用图标。图标源文件、转换图片、生成的游戏 C 代码、游戏 dump、签名应用和签名材料都不属于源码包。
+
+### 在 Windows 或 macOS 安装并导入到 iPad
+
+iOS 应用必须在 macOS 上用 Xcode 构建和签名。Windows 可以把已有签名 IPA 安装到 iPad，并将本机游戏目录导入 iPad；也可以通过 SSH 使用你明确指定的 Mac 完成构建。Windows 设备访问需要 Apple Mobile Device Service（随 iTunes 安装），且设备已由你信任并配对。设备客户端不会自动配对，也不会自动挑选设备。
+
+在项目内的独立环境安装固定版本的设备客户端：
+
+```sh
+python3 -m venv .local-tools/device-venv
+.local-tools/device-venv/bin/python -m pip install -r ios/device-requirements.txt
+```
+
+Windows 上用 `py -m venv .local-tools\device-venv` 创建环境，下面所有命令都用 `.local-tools\device-venv\Scripts\python.exe` 替换 `python3`。
+
+只读检查一个明确设备和应用：
+
+```sh
+.local-tools/device-venv/bin/python ios/build.py --doctor-device --device-id YOUR_DEVICE_ID --bundle-id com.example.yourapp
+```
+
+安装签名 IPA、导入本机游戏目录，或执行完整构建/安装/导入/启动流程：
+
+```sh
+.local-tools/device-venv/bin/python ios/build.py --install --ipa "/path/to/your-signed-app.ipa" \
+  --device-id YOUR_DEVICE_ID --bundle-id com.example.yourapp
+.local-tools/device-venv/bin/python ios/build.py --import-game --game "/path/to/your/USA-Rev2-v81-game" \
+  --device-id YOUR_DEVICE_ID --bundle-id com.example.yourapp
+.local-tools/device-venv/bin/python ios/build.py --deploy --game "/path/to/your/USA-Rev2-v81-game" \
+  --team YOUR_TEAM_ID --bundle-id com.example.yourapp --device-id YOUR_DEVICE_ID
+```
+
+Windows 上的 `--deploy --ipa ...` 会使用本机已有签名 IPA。若要在自己的 Mac 上构建，添加 `--remote-mac YOUR_SSH_ALIAS`；游戏数据只会通过 OpenSSH 发送到这个明确指定的主机，不会上传到 CI 或公开服务。签名 IPA 默认保存在被忽略的 `build/` 下并使用唯一名称；也可用 `--ipa-output` 指定新路径。已有输出文件不会被覆盖。
+
+同一 Bundle ID 的应用通过升级方式安装；流程不会卸载应用，也不会结束正在运行的进程。无法读取运行状态时会停止。安装前后会比较三个指定游戏基底文件的哈希、整个游戏目录的路径/类型/大小/时间元数据、小型 profile/偏好设置哈希，以及存档顶层数量；不会读取存档内容。新游戏目录先复制到固定的同级暂存目录，按本机清单逐文件验证后再改名为 `Documents/game`。如果目标目录已存在，只比较整树结构/大小元数据以及 `code/Zelda.rpx`、`content/FileSizeList.txt`、`content/DecompressedSizeList.txt` 三个文件的哈希，不会哈希现有游戏的每个文件；不匹配时保留原目录并停止。
+
+设备回执保存在被忽略的 `build/device-receipts/`，不包含设备标识符。安装 IPA 时会记录 IPA 哈希，并注明状态保护检查范围。自动检查不能替代真机游戏验收。
 
 ## 致谢与许可
 

@@ -55,7 +55,35 @@ python3 ios/build.py --doctor --cmake .local-tools/cmake-venv/bin/cmake
      --team YOUR_TEAM_ID --bundle-id com.example.yourapp
    ```
 
-构建会把 RPX 静态重编译为本地 C，再由 Xcode 编译 ARM64 运行时；生成的游戏 C 和数据必须留在本机被忽略的构建目录。脚本不会自动安装。成功构建不等于设备启动或游戏验证成功；安装后仍需使用同一版本的本地游戏目录，并由你完成设备上的实际验收。
+构建会把 RPX 静态重编译为本地 C，再由 Xcode 编译 ARM64 运行时；生成的游戏 C 和数据必须留在本机被忽略的构建目录。添加 `--ipa-output` 可生成新签名 IPA；已有输出文件不会被覆盖。成功构建不等于设备启动或游戏验证成功。
+
+### Windows 与 iPad 安装/导入
+
+iOS 构建签名需要 macOS 和 Xcode。Windows 可安装本机已有签名 IPA、导入本机游戏目录；也可用 `--remote-mac YOUR_SSH_ALIAS` 在你明确指定的 Mac 上构建。远程模式只向该 SSH 主机传输游戏文件，不使用 CI。Windows 设备访问需要已安装 Apple Mobile Device Service 的 iTunes，并由你先完成配对和信任。先安装设备依赖：
+
+```sh
+python3 -m venv .local-tools/device-venv
+.local-tools/device-venv/bin/python -m pip install -r ios/device-requirements.txt
+```
+
+下面的 macOS/Linux 设备命令使用 `.local-tools/device-venv/bin/python`；Windows PowerShell 命令使用 `.\.local-tools\device-venv\Scripts\python.exe`，不要改回系统 Python。
+
+只读确认一个明确设备：
+
+```sh
+.local-tools/device-venv/bin/python ios/build.py --doctor-device --device-id YOUR_DEVICE_ID --bundle-id com.example.yourapp
+```
+
+完整 Mac 本机构建到启动：
+
+```sh
+.local-tools/device-venv/bin/python ios/build.py --deploy --game "/path/to/your/USA-Rev2-v81-game" \
+  --team YOUR_TEAM_ID --bundle-id com.example.yourapp --device-id YOUR_DEVICE_ID
+```
+
+Windows PowerShell 使用同样参数，将解释器替换为 `.\.local-tools\device-venv\Scripts\python.exe` 和脚本路径替换为 `ios\build.py`。使用现有 IPA 时加 `--ipa "C:\\path\\to\\signed-app.ipa"`；在自己的 Mac 上远程构建则加 `--remote-mac YOUR_SSH_ALIAS`。单独安装使用 `--install --ipa ...`，单独导入使用 `--import-game --game ...`；这两个模式在 Windows 不要求 Xcode。每种设备操作都必须给出确切 `--device-id` 和 `--bundle-id`。
+
+流程只检查该精确 Bundle ID；应用运行或进程状态不明时会停止。已有游戏目录通过整树路径/类型/大小元数据和三个指定文件哈希做有限比较，不读取所有已有游戏文件；新导入数据才会执行完整清单哈希验证。存档只统计顶层数量，不读取存档字节。设备回执放在被忽略的 `build/device-receipts/`，不会记录设备编号，也不会把自动检查称为游戏验收。
 
 ### 性能与内容包边界
 
@@ -66,7 +94,7 @@ python3 ios/build.py --doctor --cmake .local-tools/cmake-venv/bin/cmake
 ### 可直接粘贴给 AI 的提示词
 
 ```text
-请先阅读 AGENTS.md、双语 README、性能说明、CREDITS.md 和 LICENSE，再查看 ios/build.py --help。使用 ios/build.py 作为唯一构建入口；先运行 --doctor 并按输出处理工具和缺项。只使用我自己合法持有、未修改且未合并更新的美版 Rev. 2 / v81 游戏目录；不要搜索、下载或上传 ROM、RPX、游戏资源、存档或密钥。不要向我索要账号密码、证书私钥或 profile 秘密。Team ID 和 Bundle ID 是普通构建标识；不要提交到公开仓库或公开日志。stub 只证明不含游戏代码的编译/链接，不能称为可玩。执行前先检查当前任务是否已授权签名构建、安装或设备操作；已授权的步骤直接完成，无须重复确认。缺少必要输入时再向我索取；需要账号登录或系统本人验证时交由我完成。--doctor 不检查设备授权。将生成游戏 C、游戏数据和本地构建日志放在候选源码树之外或被忽略的目录。保持 30 Hz 逻辑/60 模式插帧、M5 已测参考且最低硬件未知等证据边界，不增加未经测量的性能结论。分别报告源码、预检、构建、签装和实际游戏操作证据；没有发生的步骤标为未验证。
+请先阅读 AGENTS.md、双语 README、性能说明、CREDITS.md 和 LICENSE，再查看 ios/build.py --help。使用 ios/build.py 作为唯一构建/安装/导入入口。只使用我本机提供且合法持有的未修改美版 Rev. 2 / v81 游戏目录；不要搜索、下载或上传游戏文件到 CI/公开服务。只有我明确指定 --remote-mac 时，才可通过 OpenSSH 将游戏文件发到该主机。不要向我索要账号密码、证书私钥或 profile 秘密。Team ID 和 Bundle ID 不要提交到公开仓库或公开日志。stub 不能称为可玩。只使用明确给出的 --device-id 和 --bundle-id；不自动配对，不结束运行中的应用，不卸载或清空应用数据。已有 Documents/game 仅以整树路径/类型/大小元数据及三个指定文件哈希做有限核对；新 staging 数据可完整哈希。不要读取存档字节。执行前只在当前任务缺少必要授权时询问；已授权的步骤直接完成。登录和设备本人验证由我完成。将生成 C 代码、游戏数据和本地日志放在被忽略/私有路径。保留 30 Hz 逻辑/60 模式插帧、M5 仅为测试参考等性能证据边界。分别报告预检、构建、签名安装、导入、启动和游戏验收；未发生的步骤标为未验证。
 ```
 
 <a id="english"></a>
@@ -116,7 +144,35 @@ For later builds, pass `--cmake .local-tools/cmake-venv/bin/cmake`, or add `.loc
      --team YOUR_TEAM_ID --bundle-id com.example.yourapp
    ```
 
-The build statically recompiles the RPX into local C, then Xcode compiles the ARM64 runtime. Generated game C and game data must stay in a local ignored build directory. The script does not install the app. A successful build is not proof of device launch or gameplay; after installation, use the same-version local game folder and perform the actual acceptance on your device.
+The build statically recompiles the RPX into local C, then Xcode compiles the ARM64 runtime. Generated game C and game data must stay in a local ignored build directory. Use `--ipa-output` to create a new signed IPA, or `--deploy` for the full build/install/import/launch path on a Mac. On Windows, use an existing signed IPA with `--deploy --ipa`, or choose an explicit `--remote-mac` for the build. A successful build is not proof of device launch or gameplay; perform the actual acceptance on the device.
+
+### Windows and iPad installation/import
+
+iOS compilation and signing require macOS and Xcode. Windows can install a signed IPA and import a local game folder. It can also build through your own Mac with `--remote-mac YOUR_SSH_ALIAS`; game files go only to that explicitly selected SSH host, never to CI. Windows device access requires iTunes with Apple Mobile Device Service, plus pairing and trust completed by you. Install the pinned client in a local environment:
+
+```sh
+python3 -m venv .local-tools/device-venv
+.local-tools/device-venv/bin/python -m pip install -r ios/device-requirements.txt
+```
+
+The following macOS/Linux device commands use `.local-tools/device-venv/bin/python`. In Windows PowerShell, use `.\.local-tools\device-venv\Scripts\python.exe` as the interpreter instead of the system Python.
+
+Run a read-only check for one explicit device and app:
+
+```sh
+.local-tools/device-venv/bin/python ios/build.py --doctor-device --device-id YOUR_DEVICE_ID --bundle-id com.example.yourapp
+```
+
+Full Mac build through launch:
+
+```sh
+.local-tools/device-venv/bin/python ios/build.py --deploy --game "/path/to/your/USA-Rev2-v81-game" \
+  --team YOUR_TEAM_ID --bundle-id com.example.yourapp --device-id YOUR_DEVICE_ID
+```
+
+In Windows PowerShell, replace the interpreter with `.\.local-tools\device-venv\Scripts\python.exe` and script path with `ios\build.py`. Add `--ipa "C:\\path\\to\\signed-app.ipa"` to use a local signed IPA, or add `--remote-mac YOUR_SSH_ALIAS` to build on your Mac. Use `--install --ipa ...` for installation only and `--import-game --game ...` for import only; these device-only modes do not require Xcode. Every device operation requires an exact `--device-id` and `--bundle-id`.
+
+The workflow only queries that bundle ID. It stops if the app is running or process state cannot be read. For an existing game folder, the no-op decision checks whole-tree path/type/size metadata and hashes three specified files; it does not read every existing game file. A newly staged import receives full manifest hash verification. Save data is counted at the top level without reading file bytes. Private device receipts go under ignored `build/device-receipts/` and omit the device identifier. Automated checks do not count as gameplay acceptance.
 
 ### Performance and content-package limits
 
@@ -127,5 +183,5 @@ The repository can install an optional local content package, but game-derived r
 ### Copy-and-paste prompt for an AI
 
 ```text
-First read AGENTS.md, both READMEs, the performance notes, CREDITS.md, and LICENSE, then inspect `python3 ios/build.py --help`. Use ios/build.py as the single build entrypoint; run --doctor first and follow its reported gaps. Use only my own lawful, unmodified, non-updated USA Rev. 2 / v81 game folder. Do not search for, download, or upload ROMs, RPX files, game assets, saves, or keys. Never ask me for account passwords, certificate private keys, or profile secrets. My Team ID and Bundle ID are ordinary build identifiers; do not commit them to the public repository or public logs. A stub proves only compilation/linking without game code and must not be called playable. Before acting, check whether the current task already authorizes a signed build, installation, or device operation; complete authorized steps without asking again. Ask me only for missing required input, and hand account login or system-level personal verification to me. `--doctor` cannot verify device authorization. Keep generated game C, game data, and local build logs outside the candidate source tree or in ignored directories. Preserve the evidence limits: 30 Hz logic with 60 mode interpolation, M5 is a tested reference only, and minimum hardware is unknown. Report source, preflight, build, signing/install, and gameplay evidence separately; mark unperformed steps unverified.
+First read AGENTS.md, both READMEs, performance notes, CREDITS.md, and LICENSE, then inspect `python3 ios/build.py --help`. Use ios/build.py as the single build/install/import entrypoint. Use only my own lawful, unmodified, non-updated USA Rev. 2 / v81 game folder. Do not search for, download, or send game files to CI/public services. Only send them to an explicitly selected `--remote-mac` host over OpenSSH. Never ask for account passwords, certificate private keys, or profile secrets. Do not commit my Team ID or Bundle ID. A stub is not playable evidence. Use only the exact `--device-id` and `--bundle-id` I provide; never auto-pair, terminate a running app, uninstall it, or clear app data. For an existing `Documents/game`, use only whole-tree path/type/size metadata and hashes of the three specified base files; do not read every existing game file or save bytes. Newly staged game data may receive full manifest hash checks. Complete already-authorized steps without asking again. Hand sign-in and device prompts to me. Keep generated game C, game data, and local logs in ignored/private paths. Preserve the 30 Hz logic/60-mode interpolation and limited M5 evidence. Report preflight, build, signing/install, import, launch, and gameplay acceptance separately; mark unperformed steps unverified.
 ```
